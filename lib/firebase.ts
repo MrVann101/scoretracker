@@ -1,25 +1,43 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import { getAnalytics } from 'firebase/analytics';
+import { getAnalytics, isSupported } from 'firebase/analytics';
 import { getAuth } from 'firebase/auth';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyC7SVaX35yO78uuZJ9mMox-ivWtj7v60Z8",
-  authDomain: "score-tracker-7bfc7.firebaseapp.com",
-  projectId: "score-tracker-7bfc7",
-  storageBucket: "score-tracker-7bfc7.firebasestorage.app",
-  messagingSenderId: "783826652978",
-  appId: "1:783826652978:web:acb8549aba2c7468ab112b",
-  measurementId: "G-NQJJV3CDC7",
+const requiredEnvVars = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+const missingVars = Object.entries(requiredEnvVars)
+  .filter(([, value]) => !value)
+  .map(([key]) => `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`);
+
+if (missingVars.length > 0) {
+  throw new Error(
+    `Missing Firebase environment variables: ${missingVars.join(', ')}\n` +
+    'Please check your .env.local file and restart the dev server.'
+  );
+}
+
+const firebaseConfig = {
+  ...requiredEnvVars,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // optional
+};
+
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
-// Initialize Analytics only in browser
+// Initialize Analytics safely (optional, browser-only)
 if (typeof window !== 'undefined') {
-  getAnalytics(app);
+  isSupported().then((supported) => {
+    if (supported) getAnalytics(app);
+  });
 }
 
 export default app;
